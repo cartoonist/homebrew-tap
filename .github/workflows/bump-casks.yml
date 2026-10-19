@@ -1,4 +1,4 @@
-name: Bump alacritty
+name: Bump casks
 
 on:
   schedule:
@@ -12,6 +12,16 @@ permissions:
 jobs:
   bump:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cask:
+          - alacritty
+          - fontforge-app
+          - qbittorrent
+          - rar
+          - stretchly
+          - tau
     steps:
       - name: Set up Homebrew (taps this repo)
         id: setup
@@ -20,8 +30,10 @@ jobs:
       - name: Check for a newer release
         id: livecheck
         working-directory: ${{ steps.setup.outputs.repository-path }}
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          json=$(brew livecheck --cask --json --newer-only ${{ steps.setup.outputs.tap-name }}/alacritty)
+          json=$(brew livecheck --cask --json --newer-only ${{ steps.setup.outputs.tap-name }}/${{ matrix.cask }})
           echo "$json"
           new=$(echo "$json" | jq -r '.[0].version.latest // empty')
           echo "new=$new" >> "$GITHUB_OUTPUT"
@@ -32,7 +44,7 @@ jobs:
         run: |
           brew bump-cask-pr --write-only --no-audit --no-style \
             --version "${{ steps.livecheck.outputs.new }}" \
-            ${{ steps.setup.outputs.tap-name }}/alacritty
+            ${{ steps.setup.outputs.tap-name }}/${{ matrix.cask }}
           git diff
 
       - name: Open pull request
@@ -40,8 +52,8 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           path: ${{ steps.setup.outputs.repository-path }}
-          commit-message: "alacritty ${{ steps.livecheck.outputs.new }}"
-          title: "alacritty ${{ steps.livecheck.outputs.new }}"
+          commit-message: "${{ matrix.cask }} ${{ steps.livecheck.outputs.new }}"
+          title: "${{ matrix.cask }} ${{ steps.livecheck.outputs.new }}"
           body: "Automated bump via `brew livecheck` + `brew bump-cask-pr --write-only`."
-          branch: bump/alacritty-${{ steps.livecheck.outputs.new }}
+          branch: bump/${{ matrix.cask }}-${{ steps.livecheck.outputs.new }}
           delete-branch: true
