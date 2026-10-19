@@ -1,0 +1,34 @@
+cask "stretchly" do
+  arch arm: "-arm64"
+
+  version "1.22.1"
+  sha256 arm:   "ca307fe7f8d42776152bd6da39a3897061ece162cd83a2012923b827ef79f30b",
+         intel: "84e1d3c1d163e849d46a390f8201fef55808eb674da43578d781661f7a4db88a"
+
+  url "https://github.com/hovancik/stretchly/releases/download/v#{version}/stretchly-#{version}#{arch}.dmg"
+  name "Stretchly"
+  desc "Break time reminder app"
+  homepage "https://hovancik.net/stretchly/"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  depends_on macos: :monterey
+
+  app "Stretchly.app"
+
+  # Upstream builds are not notarized; strip the quarantine flag so Gatekeeper doesn't block it.
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/Stretchly.app"]
+  end
+
+  uninstall quit: "net.hovancik.stretchly"
+
+  zap trash: [
+    "~/Library/Application Support/Stretchly",
+    "~/Library/Logs/Stretchly",
+    "~/Library/Preferences/net.hovancik.stretchly.plist",
+  ]
+end
