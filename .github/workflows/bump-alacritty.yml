@@ -1,0 +1,47 @@
+name: Bump alacritty
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: macos-latest
+    steps:
+      - name: Set up Homebrew (taps this repo)
+        id: setup
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Check for a newer release
+        id: livecheck
+        working-directory: ${{ steps.setup.outputs.repository-path }}
+        run: |
+          json=$(brew livecheck --cask --json --newer-only cartoonist/tap/alacritty)
+          echo "$json"
+          new=$(echo "$json" | jq -r '.[0].version.latest // empty')
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+
+      - name: Bump cask file
+        if: steps.livecheck.outputs.new != ''
+        working-directory: ${{ steps.setup.outputs.repository-path }}
+        run: |
+          brew bump-cask-pr --write-only --no-audit --no-style \
+            --version "${{ steps.livecheck.outputs.new }}" \
+            cartoonist/tap/alacritty
+          git diff
+
+      - name: Open pull request
+        if: steps.livecheck.outputs.new != ''
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: ${{ steps.setup.outputs.repository-path }}
+          commit-message: "alacritty ${{ steps.livecheck.outputs.new }}"
+          title: "alacritty ${{ steps.livecheck.outputs.new }}"
+          body: "Automated bump via `brew livecheck` + `brew bump-cask-pr --write-only`."
+          branch: bump/alacritty-${{ steps.livecheck.outputs.new }}
+          delete-branch: true
